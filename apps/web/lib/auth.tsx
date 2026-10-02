@@ -12,6 +12,8 @@ interface AuthContextValue {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (organizationName: string, email: string, password: string) => Promise<void>;
+  /** Entra como visitante de la demo pública (usuario viewer nuevo). */
+  demo: () => Promise<void>;
   logout: () => void;
 }
 
@@ -55,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout,
     login: async (email, password) =>
       start(await publicPost<TokenPair>("/api/v1/auth/login", { email, password })),
+    demo: async () => start(await publicPost<TokenPair>("/api/v1/auth/demo", {})),
     register: async (organizationName, email, password) =>
       start(
         await publicPost<TokenPair>("/api/v1/auth/register", {

@@ -66,6 +66,12 @@ class Settings(BaseSettings):
 
     cors_origins: str = "http://localhost:3000"
 
+    # Demo pública: con DEMO_OWNER_EMAIL, el botón "Probar demo" crea para cada visitante un
+    # usuario viewer en la organización de ese email (documentos compartidos, chats propios).
+    demo_owner_email: str | None = None
+    # En la demo pública se cierra el registro para no agotar la cuota gratuita de la IA.
+    allow_registration: bool = True
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

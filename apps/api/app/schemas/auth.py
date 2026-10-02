@@ -24,6 +24,11 @@ class TokenPair(BaseModel):
     token_type: str = "bearer"
 
 
+class AuthOptions(BaseModel):
+    registration: bool
+    demo: bool
+
+
 class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

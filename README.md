@@ -18,7 +18,8 @@ u otro proveedor es solo configuración.
 | 2 | Agente con herramientas: búsqueda, conversión de formatos y compresión | ✅ Implementado |
 | 2 | Extracción estructurada, consultas SQL de totales, revisión de datos | Pendiente |
 | 3 | Búsqueda híbrida, reranking, panel de evaluación | Pendiente |
-| 4 | Roles por carpeta, defensa contra prompt injection, demo pública | Pendiente |
+| 4 | Demo pública (Vercel + Render) con acceso de visitante | ✅ Implementada |
+| 4 | Roles por carpeta, defensa contra prompt injection | Pendiente |
 
 **Criterio de salida de la Fase 1:** subir un PDF y obtener una respuesta con la cita
 correcta. Lo verifica `apps/api/tests/test_api_flow.py` contra PostgreSQL real.
@@ -141,6 +142,27 @@ datos exactos de cada uno. Súbelos desde la pantalla Documentos.
 Sin API keys de IA puedes probar el flujo con `LLM_PROVIDER=fake` y `EMBEDDING_PROVIDER=hash`
 en `.env` (respuestas de prueba que citan la primera fuente; no sirven para medir calidad).
 
+## Despliegue (demo pública)
+
+La web va en **Vercel** y la API en **Render** (ambos con plan gratuito, desde GitHub). La API
+no va en Vercel porque mantiene un worker de ingesta y streams SSE de larga duración.
+
+1. **Organización demo** (una vez, desde tu máquina contra el mismo Supabase):
+   ```bash
+   cd apps/api && uv run python -m app.scripts.setup_demo   # crea demo@findocs-demo.com
+   cd ../.. && uv run --project apps/api python data/generator/seed_demo.py --email demo@findocs-demo.com
+   ```
+2. **API en Render**: *New → Blueprint* con este repositorio; usa [`render.yaml`](render.yaml).
+   Completa `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `GEMINI_API_KEY` y
+   `CORS_ORIGINS` (la URL de Vercel). El plan gratuito se duerme tras 15 min sin tráfico: la
+   pantalla de login avisa mientras despierta.
+3. **Web en Vercel**: *Add New → Project* con este repositorio, *Root Directory* `apps/web` y
+   la variable `NEXT_PUBLIC_API_URL` con la URL de Render.
+
+En la demo, cada clic en **Probar demo** crea un usuario *viewer* en la organización demo:
+comparte los documentos, tiene sus propias conversaciones y no puede subir ni borrar. El
+registro queda cerrado (`ALLOW_REGISTRATION=false`) para cuidar la cuota gratuita de Gemini.
+
 ## Tests
 
 ```bash
@@ -168,6 +190,8 @@ por usuario.
 
 | Método | Ruta | Función |
 |---|---|---|
+| GET | `/auth/options` | Si hay registro abierto y demo pública |
+| POST | `/auth/demo` | Entra como visitante (viewer) de la organización demo |
 | POST | `/auth/register` | Crea organización y usuario administrador |
 | POST | `/auth/login` | Access y refresh token |
 | POST | `/auth/refresh` | Renueva tokens |

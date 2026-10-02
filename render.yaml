@@ -1,0 +1,46 @@
+# API en Render (plan gratuito). La web va en Vercel (apps/web).
+# En Render: New → Blueprint → elige este repositorio. Las variables con `sync: false` se
+# piden en el panel al crear el servicio (nunca se guardan en el repo).
+services:
+  - type: web
+    name: findocs-api
+    runtime: python
+    plan: free
+    rootDir: apps/api
+    # Python 3.12 sale de apps/api/.python-version. Se instalan las dependencias bloqueadas
+    # en uv.lock, sin las de desarrollo.
+    buildCommand: >-
+      pip install uv &&
+      uv export --frozen --no-dev --no-hashes --no-emit-project -o requirements.txt &&
+      pip install -r requirements.txt
+    # Migraciones al arrancar (idempotentes) y la API con el worker de ingesta dentro.
+    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      # URL de la web en Vercel, p. ej. https://findocs-ai.vercel.app
+      - key: CORS_ORIGINS
+        sync: false
+      - key: LLM_PROVIDER
+        value: gemini
+      - key: EMBEDDING_PROVIDER
+        value: gemini
+      - key: DEMO_OWNER_EMAIL
+        value: demo@findocs-demo.com
+      - key: ALLOW_REGISTRATION
+        value: "false"
+      # El plan gratuito tiene 512 MB: dos documentos a la vez es suficiente.
+      - key: WORKER_CONCURRENCY
+        value: "2"

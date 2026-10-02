@@ -1,13 +1,22 @@
+import secrets
 import uuid
 
 from fastapi import APIRouter, status
 from sqlalchemy import func, select
 
+from app.core.config import settings
 from app.core.deps import CurrentUser, DbSession
 from app.core.errors import AppError
 from app.core.security import create_token, decode_token, hash_password, verify_password
 from app.models import Organization, User, UserRole
-from app.schemas.auth import LoginRequest, RefreshRequest, RegisterRequest, TokenPair, UserOut
+from app.schemas.auth import (
+    AuthOptions,
+    LoginRequest,
+    RefreshRequest,
+    RegisterRequest,
+    TokenPair,
+    UserOut,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -19,9 +28,39 @@ def _tokens_for(user: User) -> TokenPair:
     )
 
 
+@router.get("/options", response_model=AuthOptions)
+async def options() -> AuthOptions:
+    """Qué formas de acceso ofrece la pantalla de login. Sirve también para despertar el
+    servidor en planes gratuitos que lo duermen."""
+    return AuthOptions(
+        registration=settings.allow_registration, demo=bool(settings.demo_owner_email)
+    )
+
+
+@router.post("/demo", response_model=TokenPair, status_code=status.HTTP_201_CREATED)
+async def demo(db: DbSession) -> TokenPair:
+    """Crea un visitante (viewer) en la organización demo: ve y consulta los documentos
+    compartidos, con sus propias conversaciones, pero no puede subir ni borrar."""
+    owner_email = (settings.demo_owner_email or "").lower()
+    owner = await db.scalar(select(User).where(User.email == owner_email)) if owner_email else None
+    if owner is None:
+        raise AppError(404, "demo_unavailable", "La demo no está disponible")
+    visitor = User(
+        organization_id=owner.organization_id,
+        email=f"visitante-{uuid.uuid4().hex[:10]}@demo.findocs",
+        password_hash=hash_password(secrets.token_urlsafe(24)),
+        role=UserRole.VIEWER,
+    )
+    db.add(visitor)
+    await db.commit()
+    return _tokens_for(visitor)
+
+
 @router.post("/register", response_model=TokenPair, status_code=status.HTTP_201_CREATED)
 async def register(body: RegisterRequest, db: DbSession) -> TokenPair:
     """Crea una organización nueva y su usuario administrador."""
+    if not settings.allow_registration:
+        raise AppError(403, "registration_closed", "El registro está cerrado en esta demo")
     email = body.email.lower()
     exists = await db.scalar(select(func.count()).select_from(User).where(User.email == email))
     if exists:
