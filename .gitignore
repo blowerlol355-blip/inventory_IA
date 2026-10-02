@@ -1,0 +1,39 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Data generated locally
+data/samples/*.pdf
+data/samples/*.json
+data/samples/*.docx
+data/samples/*.xlsx
+data/samples/*.pptx
+data/samples/*.csv
+data/samples/*.txt
+data/samples/*.jpg
+data/samples/vacios/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+data/demo50/
